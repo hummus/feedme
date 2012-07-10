@@ -1,13 +1,13 @@
-# encoding: utf-8
+# -*- coding: utf-8 -*-
 import datetime
 from south.db import db
 from south.v2 import SchemaMigration
 from django.db import models
 
+
 class Migration(SchemaMigration):
 
     def forwards(self, orm):
-        
         # Adding model 'Feed'
         db.create_table('feeds_feed', (
             ('id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
@@ -27,7 +27,7 @@ class Migration(SchemaMigration):
         # Adding model 'Entry'
         db.create_table('feeds_entry', (
             ('id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
-            ('feed', self.gf('django.db.models.fields.related.ForeignKey')(related_name='entries', to=orm['feeds.Feed'])),
+            ('feed', self.gf('django.db.models.fields.related.ForeignKey')(default=None, related_name='entries', null=True, blank=True, to=orm['feeds.Feed'])),
             ('uuid', self.gf('django.db.models.fields.CharField')(unique=True, max_length=255)),
             ('link', self.gf('django.db.models.fields.CharField')(max_length=255)),
             ('title', self.gf('django.db.models.fields.CharField')(max_length=255)),
@@ -48,9 +48,15 @@ class Migration(SchemaMigration):
         ))
         db.send_create_signal('feeds', ['UserEntry'])
 
+        # Adding model 'UserProfile'
+        db.create_table('feeds_userprofile', (
+            ('id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
+            ('user', self.gf('django.db.models.fields.related.OneToOneField')(to=orm['auth.User'], unique=True)),
+        ))
+        db.send_create_signal('feeds', ['UserProfile'])
+
 
     def backwards(self, orm):
-        
         # Deleting model 'Feed'
         db.delete_table('feeds_feed')
 
@@ -62,6 +68,9 @@ class Migration(SchemaMigration):
 
         # Deleting model 'UserEntry'
         db.delete_table('feeds_userentry')
+
+        # Deleting model 'UserProfile'
+        db.delete_table('feeds_userprofile')
 
 
     models = {
@@ -105,7 +114,7 @@ class Migration(SchemaMigration):
             'Meta': {'ordering': "('-published',)", 'object_name': 'Entry'},
             'author': ('django.db.models.fields.CharField', [], {'max_length': '255', 'null': 'True', 'blank': 'True'}),
             'content': ('django.db.models.fields.TextField', [], {'null': 'True', 'blank': 'True'}),
-            'feed': ('django.db.models.fields.related.ForeignKey', [], {'related_name': "'entries'", 'to': "orm['feeds.Feed']"}),
+            'feed': ('django.db.models.fields.related.ForeignKey', [], {'default': 'None', 'related_name': "'entries'", 'null': 'True', 'blank': 'True', 'to': "orm['feeds.Feed']"}),
             'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
             'link': ('django.db.models.fields.CharField', [], {'max_length': '255'}),
             'published': ('django.db.models.fields.DateTimeField', [], {}),
@@ -128,6 +137,11 @@ class Migration(SchemaMigration):
             'read': ('django.db.models.fields.BooleanField', [], {'default': 'False'}),
             'shared': ('django.db.models.fields.BooleanField', [], {'default': 'False'}),
             'user': ('django.db.models.fields.related.ForeignKey', [], {'to': "orm['auth.User']"})
+        },
+        'feeds.userprofile': {
+            'Meta': {'object_name': 'UserProfile'},
+            'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
+            'user': ('django.db.models.fields.related.OneToOneField', [], {'to': "orm['auth.User']", 'unique': 'True'})
         }
     }
 

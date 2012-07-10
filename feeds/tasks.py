@@ -2,14 +2,24 @@ import time
 import datetime
 import HTMLParser
 import feedparser
-from celery.decorators import task
+from celery.task import task
 from feedme.feeds.models import Feed, Entry
+from django.contrib.auth.signals import user_logged_in
+from django.dispatch import receiver
+import logging
 
+logger = logging.getLogger(__name__)
 
 @task(ignore_result=True)
 def refresh_feeds():
     for feed_id in Feed.objects.values_list('id', flat=True):
         refresh_feed.subtask().delay(feed_id)
+
+#@receiver(user_logged_in)
+#@task(ignore_result=True)
+#def refresh_user_feeds(send, user, request):
+#    for feed_id in Feed.objects.filter(users__pk=user.id):
+#        refresh_feed.subtask().delay(feed_id)
 
 
 @task(ignore_result=True)
@@ -20,9 +30,14 @@ def refresh_feed(feed_id):
     feed = Feed.objects.get(pk=feed_id)
 
     parsed = feedparser.parse(feed.uri)
-    parsed_feed = parsed.feed
 
-    feed.title = html_parser.unescape(parsed_feed.title)
+    if parsed.bozo:
+        logger.warning('feedparser got bozo error. skipping feed')
+        return
+
+    parsed_feed = parsed.feed
+    title = parsed_feed.title if hasattr(parsed_feed,'title') else feed.uri
+    feed.title = html_parser.unescape(title)
     feed.save()
 
     for parsed_entry in parsed.entries:

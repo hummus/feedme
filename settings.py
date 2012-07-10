@@ -1,4 +1,5 @@
 import os
+from datetime import timedelta
 
 # Django settings for feedme project.
 PROJECT_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -147,19 +148,30 @@ LOGGING = {
 ACCOUNT_ACTIVATION_DAYS = 7
 
 # celery
-import datetime
 import djcelery
+#import datetime
 djcelery.setup_loader()
 
+BROKER_BACKEND = "mongodb"
 BROKER_HOST = 'localhost'
-BROKER_PORT = 5672
-BROKER_USER = 'guest'
-BROKER_PASSWORD = 'guest'
-BROKER_VHOST = '/'
+BROKER_PORT = 27017
+#BROKER_PORT = 5672
+#BROKER_USER = 'guest'
+#BROKER_USER = ""
+#BROKER_PASSWORD = 'guest'
+#BROKER_PASSWORD = ""
+#BROKER_VHOST = '/'
+#BROKER_VHOST = "/celery"
+
+CELERY_MONGODB_BACKEND_SETTINGS = {
+    "host": "localhost",
+    "port": 27017,
+    "database": "celery",
+    }
 
 CELERYBEAT_SCHEDULE = {
     'refresh-feeds': {
         'task': 'feedme.feeds.tasks.refresh_feeds',
-        'schedule': datetime.timedelta(minutes=30),
+        'schedule': timedelta(minutes=5),
     },
 }

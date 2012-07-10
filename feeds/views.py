@@ -1,29 +1,71 @@
 from django.core.urlresolvers import reverse
 from django.conf import settings
 from django.views.decorators.http import require_POST
+from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import get_object_or_404, redirect, render
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.models import User
+from django.contrib.sites.models import RequestSite
+from django.utils.encoding import smart_str
+from django.http import HttpResponse
+
 from feedme.ajax import json_response
+from feedme.utils import validate_url
 from feedme.feeds.models import Feed, Entry, UserEntry
-from feedme.feeds.forms import ImportForm
-from django.http import Http404, HttpResponse
-from django.views.decorators.csrf import csrf_exempt
+from feedme.feeds.forms import ImportForm,BookmarkletForm
+from feedme.feeds.tasks import refresh_feeds
+
+from uuid import uuid5,NAMESPACE_URL
 
 import datetime
 
-def feed(request, feed_id=None, user_id=None, unread=True):
+PUBLIC_NAMED_SETS = {'ALL_SHARED': EntrySet(user_id_list=[EntrySet.ALL], 
+                                            feed_id_list=[EntrySet.ALL], 
+                                            qualifier_list={'shared':True})}
+
+
+def feed(request, feed_id=None, user_id=None, named_set=None, unread=False):
+    ##
+    # an internal "feed" just returns a list of entries
+    # it can really be any of the following:
+    #  - an individual(website or blog) RSS/AtomFeed that was added 
+    #           = feed(feed_id).all_entries
+    #           ~ when feed_id not None
+    #  - a single user's shared feed 
+    #           = user_entries(user_id).shared=True
+    #           ~ when user_id not None
+    #  - a specific user's overall feed
+    #           = user(user_id).feeds.all_entries + [each(user.friends).user_entries.shared=True]
+    #           (sort by published descending) []=not yet implemented
+    #           ~ when request.user.id = user_id 
+    #  - the overall public feed for the whole site 
+    #           = each(user).user_entries.shared=True
+    #           ~ when feed_id and user_id are None
+    #TODO:
+    #  - allow (folder/tag/context/aspect) id?
+    #  *also allow users to only show their unread entries
+    ###
+    
     if feed_id:
         feed = get_object_or_404(Feed, pk=feed_id)
         entries = feed.entries
         heading = feed.title
     elif user_id:
         get_user = get_object_or_404(User, pk=user_id) 
-        if not get_user:
-            get_user = request.user
+
         entries = Entry.objects.filter(userentry__user=get_user,
                                         userentry__shared=True)
         heading = get_user.username
+    elif named_set:
+        heading = named_set
+        if user.is_authenticated:
+            entries = user.get_profile().get_entries_for(named_set)
+        else:
+            kw = PUBLIC_NAMED_SETS.get(named_set,None)
+            if not kw:
+                entries = Entry.objects.none()
+            else:
+                entries = Entry.objects.filter(**kw)
         
     if request.user.is_authenticated():
         if unread:
@@ -31,10 +73,10 @@ def feed(request, feed_id=None, user_id=None, unread=True):
                                       userentry__read=True)
         if feed_id:
             subscribed = request.user.feeds.filter(pk=feed.id).exists()
+        
         elif user_id:
-            subscribed = True
+            subscribed = True #TODO no meaning
     else:
-        entries = entries.all()
         subscribed = None
 
     return render(request, 'feeds/feed.html', {
@@ -54,7 +96,7 @@ def bookmarklet(request, user_id):
                   },content_type="application/javascript"
                   )
 
-def shares(request, user_id=None, unred=True):
+def user_shares(request, user_id=None, unread=True):
     if (user_id):
         return redirect('feed', user_id=user_id)
     
@@ -72,7 +114,7 @@ def home(request):
     if request.user.is_authenticated():
         user_id = request.user.id
         bm_initial_url = """javascript:(function(){document.body.appendChild(document.createElement('script')).src='"""
-        bm_initial_url += reverse("bookmarklet", args=(user_id,))
+        bm_initial_url +="http://%s%s"%(RequestSite(request).domain, reverse("bookmarklet", args=(user_id,)) )
         bm_initial_url +="""';})();"""
         
     return render(request, 'feeds/home.html', 
@@ -124,39 +166,43 @@ def share(request, entry_id):
 
 @csrf_exempt
 def external_share(request):
+    import pdb; pdb.set_trace()
+    print request.POST
     if request.method == 'POST':
-        user = User.objects.get(id__exact=request.POST['user_id'])
-        url = request.POST['url']
-        comment = request.POST['comment']
-        title = request.POST['title']
-        entries = Entry.objects.filter(link=url)
-        if not entries:
-            entry = Entry()
-            entry.content = comment
-            entry.uuid = url
+        form = BookmarkletForm(request.POST, request.FILES)
+        if form.is_valid():
+            user = User.objects.get(id__exact=form.cleaned_data['user_id'])
+            url = form.cleaned_data['url']
+            title = form.cleaned_data['title']
+            comment = form.cleaned_data['comment']
+
+            #standardize url and use for uuid
+            url = validate_url(url)
+
+            #this only wants bytestrs
+            uuid = uuid5(NAMESPACE_URL, smart_str(url))
+            
+            try:
+                entry = Entry.objects.get(uuid=uuid)
+            except Entry.DoesNotExist:
+                entry = Entry()
+                entry.feed = None
+                entry.uuid = uuid
+            
             entry.link = url
             entry.title = title
-            entry.feed = None
+            #temporarily use comment for content
+            entry.content = comment            
             entry.published = datetime.date.today()
             entry.save()
-            print "entry saved"
+
             user_entry = UserEntry()
+            user_entry.entry = entry
             user_entry.user = user
-        else :
-            entry = entries[0]
-            try:
-                user_entry = UserEntry.objects.get(user=user,entry=entry)
-            except UserEntry.DoesNotExist:
-                user_entry = UserEntry()
-        user_entry.user = user
-        user_entry.entry = entry
-        user_entry.shared = True
-        user_entry.read = True
-        user_entry.save()
-        print "userentry saved"
-        return HttpResponse("saved")
-    else:
-        return HttpResponse(status=404)
+            user_entry.shared = True
+            user_entry.read = True
+            user_entry.save()
+            return HttpResponse("saved")
 
 @login_required
 def import_opml(request):
@@ -173,7 +219,7 @@ def import_opml(request):
                     feed.title = el.attrib['text']
                     feed.save()
                 request.user.feeds.add(feed)
-            #refresh_feeds()
+            refresh_feeds()
             return redirect('home')
     else:
         form = ImportForm()

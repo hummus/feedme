@@ -2,6 +2,13 @@ import xml.etree.ElementTree
 from django import forms
 
 
+class BookmarkletForm(forms.Form):
+    user_id = forms.IntegerField()
+    url = forms.URLField()
+    title = forms.CharField()
+    comment = forms.CharField()
+
+
 class ImportForm(forms.Form):
     opml = forms.FileField(label="OPML file")
 
