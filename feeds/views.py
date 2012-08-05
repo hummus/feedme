@@ -46,6 +46,7 @@ PUBLIC_NAMED_SETS = {'ALL_SHARED': EntrySet(user_ids=[EntrySet.ALL],
 
 def label_feed(request, label_name, unread=False):
     #if request.user.is_authenticated:
+    import pdb; pdb.set_trace()
     try:
         entries = request.user.get_profile().get_entries_for(label_name)
     except:

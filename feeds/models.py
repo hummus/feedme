@@ -78,8 +78,11 @@ class UserEntry(models.Model):
     bookmarked = models.BooleanField(default=False)
     shared = models.BooleanField(default=False)
 
+
+User.profile = property(lambda u: UserProfile.objects.get_or_create(user=u)[0])
 class UserProfile(models.Model):
-    user = models.OneToOneField(User)
+    user = models.ForeignKey(User, unique=True)
+
     #include_read = models.BooleanField(default=True)
     #friends = models.ForeignKey(User)
     
@@ -131,9 +134,9 @@ class UserProfile(models.Model):
         return entries
 
 
-#def create_user_profile(sender, instance, created, **kwargs):  
-#    if created:  
-#        profile, created = UserProfile.objects.get_or_create(user=instance)  
-#        
-#post_save.connect(create_user_profile, sender=User)
+def create_user_profile(sender, instance, created, **kwargs):  
+    if created:  
+        profile, created = UserProfile.objects.get_or_create(user=instance)  
+        
+post_save.connect(create_user_profile, sender=User)
     
