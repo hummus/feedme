@@ -4,33 +4,34 @@ from django.contrib.auth.models import User
 from django.db.models.signals import post_save
 
 
-#at first this will be only used internally
-#later maybe something like tags?
-#also something about this should be recursive
+#maybe should be recursive?
 class EntrySet():
     ALL = -1
 
-    def __init__(self, feed_id_list=[], user_id_list=[], qualifier_list={}):
+    def __init__(self, feed_ids=[], user_ids=[], qualifiers={}):
         '''
         params:
         qualifier_list=dict of userentry boolean fields to select/deselect for
         '''
-        self.feed_id_list = feed_id_list
-        self.user_id_list = user_id_list
-        self.qualifier_list = qualifier_list
+        self.feed_ids = feed_ids
+        self.user_ids = user_ids
+        self.qualifiers = qualifiers
 
-    def get_filter_kwargs():
+    def get_filter_kwargs(self):
         kw = {}
-        if user_id_list and not ALL in user_id_list:
-            kw.update({'userentry__user__in':self.user_id_list)
+        if self.user_ids and not EntrySet.ALL in self.user_ids:
+            kw.update({'userentry__user__in':self.user_id_list})
         
-        if feed_id_list and not ALL in feed_id_list:
-            kw.update({'feed_id__in':self.feed_id_list)
+        if self.feed_ids and not EntrySet.ALL in self.feed_ids:
+            kw.update({'feed_id__in':self.feed_id_list})
         
-        if qualifier_list:
-            for (q,b) in qualifier_list.iteritems():
-                kw.update({'userentry__%s':b})
+        if self.qualifiers:
+            for (q,b) in self.qualifiers.iteritems():
+                print q,b
+                kw.update({'userentry__%s'%q:b})
         return kw
+
+
 
 
 class Feed(models.Model):
@@ -112,19 +113,19 @@ class UserProfile(models.Model):
         entries = None
         #these are specific for a user
         if setname=='READING':
-            es = EntrySet(user_id_list=[self.user.id], 
-                            feed_id_list=[EntrySet.ALL])
+            es = EntrySet(user_ids=[self.user.id], 
+                            feed_ids=[EntrySet.ALL])
             entries = Entry.objects.filter(**es.get_filter_kwargs())
         
         if setname=='SHARING':
-            es =  EntrySet(user_id_list=[self.user.id],
-                            feed_id_list=[EntrySet.ALL],
-                            qualifier_list={'shared':True})
+            es =  EntrySet(user_ids=[self.user.id],
+                            feed_ids=[EntrySet.ALL],
+                            qualifiers={'shared':True})
             entries = Entry.objects.filter(**es.get_filter_kwargs())
         if setname=='ALL_SHARED':
-            es = EntrySet(user_id_list=[EntrySet.ALL],
-                            feed_id_list=[EntrySet.ALL],
-                            qualifier_list={'shared':True})
+            es = EntrySet(user_ids=[EntrySet.ALL],
+                            feed_ids=[EntrySet.ALL],
+                            qualifiers={'shared':True})
             entries = Entry.objects.filter(**es.get_filter_kwargs()).exclude(userentry__user_id=user.id)
 
         return entries

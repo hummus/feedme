@@ -152,9 +152,17 @@ import djcelery
 #import datetime
 djcelery.setup_loader()
 
+#mongo
 BROKER_BACKEND = "mongodb"
 BROKER_HOST = 'localhost'
 BROKER_PORT = 27017
+CELERY_MONGODB_BACKEND_SETTINGS = {
+    "host": "localhost",
+    "port": 27017,
+    "database": "celery",
+    }
+
+
 #BROKER_PORT = 5672
 #BROKER_USER = 'guest'
 #BROKER_USER = ""
@@ -162,12 +170,6 @@ BROKER_PORT = 27017
 #BROKER_PASSWORD = ""
 #BROKER_VHOST = '/'
 #BROKER_VHOST = "/celery"
-
-CELERY_MONGODB_BACKEND_SETTINGS = {
-    "host": "localhost",
-    "port": 27017,
-    "database": "celery",
-    }
 
 CELERYBEAT_SCHEDULE = {
     'refresh-feeds': {

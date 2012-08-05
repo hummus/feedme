@@ -7,13 +7,15 @@ urlpatterns = patterns(
 
     #feed-related
     url(r'^$', 'home', name='home'),
-    url(r'^me$', 'home', name='feed'),
+        
     # TODO greader uses full url for actual feeds, is this better?
-    url(r'^feed/(?P<feed_id>\d+)/$', 'feed', name='feed'),
-    url(r'^feed/(?P<feed_id>\d+)/all/$', 'feed', kwargs={'unread': False}),
+    url(r'^feed/(?P<feed_id>\d+)/$', 'feed_feed', name='feed'),
+    url(r'^feed/(?P<feed_id>\d+)/all/$', 'feed_feed', kwargs={'unread': False}),
     
-    # U
-    url(r'^user/(?P<username>\d+)/$', 'feed', name='user_feed'),
+    url(r'^user/(?P<user_id>\w+)/$', 'user_feed'),
+    url(r'^user_feed/(?P<user_id>\w+)/$', 'user_feed', name='user'),
+
+    url(r'^label/(?P<label_name>\w+)/$', 'label_feed', name='label'),
     
     # User feed views
     url(r'^subscribe/(?P<feed_id>\d+)/$', 'subscribe', name='subscribe'),
@@ -27,7 +29,7 @@ urlpatterns = patterns(
     url(r'^bookmarklet/(?P<user_id>\d+)/$','bookmarklet', name='bookmarklet'),
 
     #public feeds
-    url(r'^rss/$', 'shares', name='shares'),
-    url(r'^rss/(?P<user_pub_id>\d+)/$', 'shares', name='shares'),
+    #url(r'^rss/$', 'shares', name='shares'),
+    #url(r'^rss/(?P<user_pub_id>\d+)/$', 'shares', name='shares'),
     #url(r'^shares/(?P<user_pub_id>\d+)/(?P<user_aspect_id>$', 'shares', name='shares'),
 )

@@ -11,7 +11,7 @@ from django.http import HttpResponse
 
 from feedme.ajax import json_response
 from feedme.utils import validate_url
-from feedme.feeds.models import Feed, Entry, UserEntry
+from feedme.feeds.models import Feed, Entry, UserEntry, EntrySet
 from feedme.feeds.forms import ImportForm,BookmarkletForm
 from feedme.feeds.tasks import refresh_feeds
 
@@ -19,66 +19,79 @@ from uuid import uuid5,NAMESPACE_URL
 
 import datetime
 
-PUBLIC_NAMED_SETS = {'ALL_SHARED': EntrySet(user_id_list=[EntrySet.ALL], 
-                                            feed_id_list=[EntrySet.ALL], 
-                                            qualifier_list={'shared':True})}
+PUBLIC_NAMED_SETS = {'ALL_SHARED': EntrySet(user_ids=[EntrySet.ALL], 
+                                            feed_ids=[EntrySet.ALL], 
+                                            qualifiers={'shared':True})}
 
+##
+# an internal "feed" just returns a list of entries
+# it can really be any of the following:
+#  - an individual(website or blog) RSS/AtomFeed that was added 
+#           = feed(feed_id).all_entries
+#           ~ when feed_id not None
+#  - a single user's shared feed 
+#           = user_entries(user_id).shared=True
+#           ~ when user_id not None
+#  - a specific user's overall feed
+#           = user(user_id).feeds.all_entries + [each(user.friends).user_entries.shared=True]
+#           (sort by published descending) []=not yet implemented
+#           ~ when request.user.id = user_id 
+#  - the overall public feed for the whole site 
+#           = each(user).user_entries.shared=True
+#           ~ when feed_id and user_id are None
+#TODO:
+#  - allow (folder/tag/context/aspect) id?
+#  *also allow users to only show their unread entries
+###
 
-def feed(request, feed_id=None, user_id=None, named_set=None, unread=False):
-    ##
-    # an internal "feed" just returns a list of entries
-    # it can really be any of the following:
-    #  - an individual(website or blog) RSS/AtomFeed that was added 
-    #           = feed(feed_id).all_entries
-    #           ~ when feed_id not None
-    #  - a single user's shared feed 
-    #           = user_entries(user_id).shared=True
-    #           ~ when user_id not None
-    #  - a specific user's overall feed
-    #           = user(user_id).feeds.all_entries + [each(user.friends).user_entries.shared=True]
-    #           (sort by published descending) []=not yet implemented
-    #           ~ when request.user.id = user_id 
-    #  - the overall public feed for the whole site 
-    #           = each(user).user_entries.shared=True
-    #           ~ when feed_id and user_id are None
-    #TODO:
-    #  - allow (folder/tag/context/aspect) id?
-    #  *also allow users to only show their unread entries
-    ###
-    
-    if feed_id:
-        feed = get_object_or_404(Feed, pk=feed_id)
-        entries = feed.entries
-        heading = feed.title
-    elif user_id:
-        get_user = get_object_or_404(User, pk=user_id) 
-
-        entries = Entry.objects.filter(userentry__user=get_user,
-                                        userentry__shared=True)
-        heading = get_user.username
-    elif named_set:
-        heading = named_set
-        if user.is_authenticated:
-            entries = user.get_profile().get_entries_for(named_set)
+def label_feed(request, label_name, unread=False):
+    #if request.user.is_authenticated:
+    try:
+        entries = request.user.get_profile().get_entries_for(label_name)
+    except:
+        entry_set = PUBLIC_NAMED_SETS.get(label_name,None)
+        if not entry_set:
+            entries = Entry.objects.none()
         else:
-            kw = PUBLIC_NAMED_SETS.get(named_set,None)
-            if not kw:
-                entries = Entry.objects.none()
-            else:
-                entries = Entry.objects.filter(**kw)
-        
+            entries = Entry.objects.filter(**entry_set.get_filter_kwargs())
+    
+    heading = label_name
+
+    return render(request, 'feeds/feed.html', {
+        'heading': heading,
+        'entries': entries,
+    })
+
+def user_feed(request, user_id, unread=False):
+    get_user = get_object_or_404(User, pk=user_id) 
+
+    entries = Entry.objects.filter(userentry__user=get_user,
+                                    userentry__shared=True)
+    heading = get_user.username
+
+    return render(request, 'feeds/feed.html', {
+        'heading': heading,
+        'entries': entries,
+    })
+
+def feed_feed(request, feed_id=None, unread=False):
+    
+    feed = get_object_or_404(Feed, pk=feed_id)
+
+    entries = feed.entries
+    heading = feed.title
+    
     if request.user.is_authenticated():
         if unread:
             entries = entries.exclude(userentry__user=request.user,
                                       userentry__read=True)
-        if feed_id:
-            subscribed = request.user.feeds.filter(pk=feed.id).exists()
-        
-        elif user_id:
-            subscribed = True #TODO no meaning
+
+        subscribed = request.user.feeds.filter(pk=feed.id).exists()
+
     else:
         subscribed = None
 
+    entries = entries.all()
     return render(request, 'feeds/feed.html', {
         'heading': heading,
         'entries': entries,
@@ -166,7 +179,6 @@ def share(request, entry_id):
 
 @csrf_exempt
 def external_share(request):
-    import pdb; pdb.set_trace()
     print request.POST
     if request.method == 'POST':
         form = BookmarkletForm(request.POST, request.FILES)

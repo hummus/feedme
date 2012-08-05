@@ -19,14 +19,27 @@
   {% endif %}
 </ul>
 
+
 <ul id="feed-nav">
-  <li><a href="{% url home %}">Home</a></li>
+  <li><a href="{% url label label_name='ALL_SHARED' %}">Shared(all)</a></li>
   {% if user.is_authenticated %}
-    <a class="feed" href={% url feed feed_id=%}
-    <li>Bookmarked items</li>
+    <li><a href="{% url label label_name='READING' %}">Reading</a></li>
+    <li><a href="{% url label label_name='SHARING' %}">Sharing</a></li>
   {% endif %}  
   {% if user.is_authenticated %}
-    <li class="list-heading">Subscriptions</li>
+    <li class="list-heading">Users</li>
+    <li>
+      <ul id="users">
+        {% for user in users.all %}
+          <li>
+            <a class="feed" href="{% url user_feed user_id=user.id %}">
+              {{ user }}
+            </a>
+          </li>
+        {% endfor %}
+      </ul>
+    </li>
+    <li class="list-heading">Feeds</li>
     <li>
       <ul id="feeds">
         {% for feed in user.feeds.all %}

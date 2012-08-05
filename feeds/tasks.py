@@ -2,11 +2,27 @@ import time
 import datetime
 import HTMLParser
 import feedparser
-from celery.task import task
 from feedme.feeds.models import Feed, Entry
 from django.contrib.auth.signals import user_logged_in
 from django.dispatch import receiver
 import logging
+
+
+class failsafe_task(object):
+    def __init__(self, task,*args, **kw_args):
+        self.task = task
+        self.args = (args, kw_args)
+
+    def __call__(self):
+        p = Process(target = self.task, args = self.args[0], kw_args=self.args[1])
+        p.start()
+
+try:
+    from celery.task import task
+except:
+    task = failsafe_task
+
+
 
 logger = logging.getLogger(__name__)
 
