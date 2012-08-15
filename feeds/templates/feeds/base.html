@@ -21,11 +21,11 @@
 
 
 <ul id="feed-nav">
-  <li><a href="{% url label label_name='ALL_SHARED' %}">Shared(all)</a></li>
   {% if user.is_authenticated %}
-    <li><a href="{% url label label_name='READING' %}">Reading</a></li>
-    <li><a href="{% url label label_name='SHARING' %}">Sharing</a></li>
+    <li><a href="{% url label label_name='READING' %}">All Items</a></li>
+    <li><a href="{% url label label_name='SHARING' %}">Your Shared Items</a></li>
   {% endif %}  
+  <li><a href="{% url label label_name='ALL_SHARED' %}">Other's Shared Items</a></li>
   {% if user.is_authenticated %}
     <li class="list-heading">Users</li>
     <li>

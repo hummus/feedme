@@ -10,7 +10,7 @@ urlpatterns = patterns(
         
     # TODO greader uses full url for actual feeds, is this better?
     url(r'^feed/(?P<feed_id>\d+)/$', 'feed_feed', name='feed'),
-    url(r'^feed/(?P<feed_id>\d+)/all/$', 'feed_feed', kwargs={'unread': False}),
+    #url(r'^feed/(?P<feed_id>\d+)/all/$', 'feed_feed', kwargs={'unread': False}),
     
     url(r'^user/(?P<user_id>\w+)/$', 'user_feed'),
     url(r'^user_feed/(?P<user_id>\w+)/$', 'user_feed', name='user'),
@@ -22,6 +22,7 @@ urlpatterns = patterns(
     url(r'^unsubscribe/(?P<feed_id>\d+)/$', 'unsubscribe', name='unsubscribe'),
 
     # User entry views
+    url(r'^refresh_feed/(?P<feed_id>\d+)/$', 'refresh_feed', name='refresh_feed'),
     url(r'^read/(?P<entry_id>\d+)/$', 'read', name='read'),
     url(r'^share/(?P<entry_id>\d+)/$', 'share', name='share'),
     

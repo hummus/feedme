@@ -1,6 +1,7 @@
 *~
 *.pyc
 *.pyo
+build
 TAGS
 *.sqlite3
 celerybeat.pid

@@ -64,6 +64,8 @@ STATIC_ROOT = os.path.join(PROJECT_DIR, 'sitestatic')
 # Example: "http://media.lawrence.com/static/"
 STATIC_URL = '/static/'
 
+LOGIN_REDIRECT_URL = '/'
+
 # URL prefix for admin static files -- CSS, JavaScript and images.
 # Make sure to use a trailing slash.
 # Examples: "http://foo.com/static/admin/", "/static/admin/".
@@ -115,7 +117,6 @@ INSTALLED_APPS = (
     'django.contrib.staticfiles',
     'django.contrib.admin',
     'django.contrib.admindocs',
-    'djcelery',
     'south',
     'registration',
     'feedme.feeds',
@@ -147,33 +148,38 @@ LOGGING = {
 # registration
 ACCOUNT_ACTIVATION_DAYS = 7
 
-# celery
-import djcelery
-#import datetime
-djcelery.setup_loader()
+#celery is great for handling tasks async
+#but shared hosting cant run it so lets me nice
+USE_CELERY=False
+if USE_CELERY:
+    INSTALLED_APPS += ('djcelery',)
 
-#mongo
-BROKER_BACKEND = "mongodb"
-BROKER_HOST = 'localhost'
-BROKER_PORT = 27017
-CELERY_MONGODB_BACKEND_SETTINGS = {
-    "host": "localhost",
-    "port": 27017,
-    "database": "celery",
+    # celery
+    import djcelery
+    #import datetime
+    djcelery.setup_loader()
+
+    #mongo
+    BROKER_BACKEND = "mongodb"
+    BROKER_HOST = 'localhost'
+    BROKER_PORT = 27017
+    CELERY_MONGODB_BACKEND_SETTINGS = {
+        "host": "localhost",
+        "port": 27017,
+        "database": "celery",
+        }
+
+
+    #BROKER_PORT = 5672
+    #BROKER_USER = 'guest'
+    #BROKER_USER = ""
+    #BROKER_PASSWORD = 'guest'
+    #BROKER_PASSWORD = ""
+    #BROKER_VHOST = '/'
+    #BROKER_VHOST = "/celery"
+    CELERYBEAT_SCHEDULE = {
+        'refresh-feeds': {
+            'task': 'feedme.feeds.tasks.refresh_feeds',
+            'schedule': timedelta(minutes=5),
+        },
     }
-
-
-#BROKER_PORT = 5672
-#BROKER_USER = 'guest'
-#BROKER_USER = ""
-#BROKER_PASSWORD = 'guest'
-#BROKER_PASSWORD = ""
-#BROKER_VHOST = '/'
-#BROKER_VHOST = "/celery"
-
-CELERYBEAT_SCHEDULE = {
-    'refresh-feeds': {
-        'task': 'feedme.feeds.tasks.refresh_feeds',
-        'schedule': timedelta(minutes=5),
-    },
-}

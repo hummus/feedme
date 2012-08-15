@@ -30,6 +30,27 @@
     border-bottom: 1px solid #eeeeec;
 }
 
+#feed-top li {
+    display: inline;
+}
+
+#feed-top a {
+    display: inline-block;
+    padding: 0.5em;
+    color: #babdb6;
+}
+
+#feed-top a:hover {
+    color: #eeeeec;
+}
+
+#feed-top a:active {
+    color: #eeeeec;
+    border-bottom: 1px solid #eeeeec;
+}
+
+
+
 #feed-nav {
     float: left;
     margin-left: 4px;

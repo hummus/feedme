@@ -13,15 +13,22 @@ from feedme.ajax import json_response
 from feedme.utils import validate_url
 from feedme.feeds.models import Feed, Entry, UserEntry, EntrySet
 from feedme.feeds.forms import ImportForm,BookmarkletForm
-from feedme.feeds.tasks import refresh_feeds
+import feedme.feeds.tasks as tasks
 
 from uuid import uuid5,NAMESPACE_URL
-
+from collections import namedtuple
 import datetime
+
 
 PUBLIC_NAMED_SETS = {'ALL_SHARED': EntrySet(user_ids=[EntrySet.ALL], 
                                             feed_ids=[EntrySet.ALL], 
                                             qualifiers={'shared':True})}
+NamedValue = namedtuple('NamedValue','description value url')
+
+UNREAD = {
+            True:'show unread-only',
+            False:'show all'
+        }
 
 ##
 # an internal "feed" just returns a list of entries
@@ -46,7 +53,7 @@ PUBLIC_NAMED_SETS = {'ALL_SHARED': EntrySet(user_ids=[EntrySet.ALL],
 
 def label_feed(request, label_name, unread=False):
     #if request.user.is_authenticated:
-    import pdb; pdb.set_trace()
+    #import pdb; pdb.set_trace()
     try:
         entries = request.user.get_profile().get_entries_for(label_name)
     except:
@@ -57,10 +64,17 @@ def label_feed(request, label_name, unread=False):
             entries = Entry.objects.filter(**entry_set.get_filter_kwargs())
     
     heading = label_name
+    flip_unread = NamedValue(
+                        UNREAD[not unread],
+                        not unread,
+                        reverse('label', kwargs={'label_name': label_name})
+        )
 
     return render(request, 'feeds/feed.html', {
         'heading': heading,
         'entries': entries,
+        'unread' : flip_unread,
+        'updatable': False,
     })
 
 def user_feed(request, user_id, unread=False):
@@ -71,8 +85,11 @@ def user_feed(request, user_id, unread=False):
     heading = get_user.username
 
     return render(request, 'feeds/feed.html', {
-        'heading': heading,
-        'entries': entries,
+        'heading'  : heading,
+        'entries'  : entries,
+        'unread'   : flip_unread,
+        'updatable': False,
+        
     })
 
 def feed_feed(request, feed_id=None, unread=False):
@@ -93,9 +110,16 @@ def feed_feed(request, feed_id=None, unread=False):
         subscribed = None
 
     entries = entries.all()
+    flip_unread = NamedValue(
+                    UNREAD[not unread],
+                    not unread,
+                    reverse('feed', kwargs={'feed_id': feed_id})
+    )
     return render(request, 'feeds/feed.html', {
-        'heading': heading,
-        'entries': entries,
+        'heading'  : heading,
+        'entries'  : entries,
+        'unread'   : flip_unread,
+        'updatable': True,
     })
 
 
@@ -136,6 +160,12 @@ def home(request):
                    'bm_initial_url':bm_initial_url,
                   }
            )
+
+@login_required
+def refresh_feed(request, feed_id):
+    feed = get_object_or_404(Feed, pk=feed_id)
+    tasks.refresh_feed(feed_id)
+    return redirect('feed', feed_id=feed.id)
 
 @login_required
 @require_POST

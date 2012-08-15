@@ -3,6 +3,20 @@
 {% block title %}{{ heading }}{% endblock %}
 
 {% block content %}
+<ul id="feed-top">
+    {% if updatable %}
+    <li>
+    <a href="{% url refresh_feed feed_id=unread.value %}">
+      update
+    </a>
+    {% endif %}
+    </li>
+    <li>
+      <a href="{{ unread.url }}?unread={{ unread.value }}">
+       {{ unread.description }}
+      </a>
+    </li>
+</ul>
 <h1>{{ heading }}</h1>
 
 {% for entry in entries %}
